@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Camera, 
-  CheckCircle2, 
-  XCircle, 
-  MapPin, 
-  Clock, 
+import {
+  Camera,
+  CheckCircle2,
+  XCircle,
+  MapPin,
+  Clock,
   Loader2,
   RefreshCw,
   AlertTriangle,
@@ -15,12 +15,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isWithinRadius, formatDistance } from "@/lib/geolocation";
 
 interface QRScannerProps {
   onAttendanceMarked: (sessionData: any, location: GeolocationCoordinates) => void;
 }
 
-type ScanStatus = "idle" | "scanning" | "verifying" | "success" | "error" | "expired" | "location_error";
+type ScanStatus = "idle" | "scanning" | "verifying" | "success" | "error" | "expired" | "location_error" | "out_of_range";
 
 interface DecodedQR {
   sessionId: string;
@@ -28,6 +29,11 @@ interface DecodedQR {
   timestamp: number;
   expiresAt: number;
   locationRequired: boolean;
+  allowedLocation?: {
+    latitude: number;
+    longitude: number;
+    radius: number;
+  };
 }
 
 const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
@@ -44,10 +50,10 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
+
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -61,7 +67,7 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
 
   const requestLocation = () => {
     setLocationError(null);
-    
+
     if (!navigator.geolocation) {
       setLocationError("Geolocation is not supported by your browser");
       return;
@@ -116,7 +122,7 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
           qrbox: { width: 250, height: 250 },
         },
         onScanSuccess,
-        () => {} // Ignore scan failures
+        () => { } // Ignore scan failures
       );
     } catch (err) {
       console.error("Failed to start scanner:", err);
@@ -155,7 +161,23 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
       // Simulate verification delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Location is already verified, mark attendance
+      // Validate location if required
+      if (decoded.allowedLocation && location) {
+        const { isWithin, distance } = isWithinRadius(
+          { latitude: location.latitude, longitude: location.longitude },
+          decoded.allowedLocation
+        );
+
+        if (!isWithin) {
+          setStatus("out_of_range");
+          setErrorMessage(
+            `You are ${formatDistance(distance)} away from the classroom. You must be within ${formatDistance(decoded.allowedLocation.radius)} to mark attendance.`
+          );
+          return;
+        }
+      }
+
+      // Location is verified, mark attendance
       if (location) {
         onAttendanceMarked(decoded, location);
         setStatus("success");
@@ -205,7 +227,7 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
             {/* Location Status */}
             <div className={cn(
               "p-4 rounded-xl flex items-center gap-3",
-              location ? "bg-success/10" : "bg-warning/10"
+              location ? "bg-success/10 border border-success/20" : "bg-warning/10 border border-warning/20"
             )}>
               <MapPin className={cn(
                 "w-5 h-5",
@@ -219,8 +241,8 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
                   {location ? "Location verified" : "Location required"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {location 
-                    ? `Accuracy: ${Math.round(location.accuracy)}m` 
+                  {location
+                    ? `Accuracy: ${Math.round(location.accuracy)}m`
                     : locationError || "Requesting access..."}
                 </p>
               </div>
@@ -231,8 +253,8 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
               )}
             </div>
 
-            <Button 
-              onClick={startScanning} 
+            <Button
+              onClick={startScanning}
               disabled={!location || !isOnline}
               className="w-full gradient-primary border-0 h-14 text-lg"
             >
@@ -257,12 +279,8 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
             className="space-y-4"
           >
             <div className="relative">
-              <div 
-                id={scannerContainerId} 
-                className="rounded-2xl overflow-hidden"
-              />
               {/* Scanning overlay */}
-              <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 pointer-events-none z-10">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-64 h-64 border-2 border-primary rounded-2xl relative">
                     <motion.div
@@ -277,8 +295,8 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
             <p className="text-center text-muted-foreground">
               Align QR code within the frame
             </p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 stopScanning();
                 setStatus("idle");
@@ -378,6 +396,7 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
 
       case "error":
       case "location_error":
+      case "out_of_range":
         return (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -385,7 +404,7 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
             className="text-center space-y-6 py-8"
           >
             <div className="w-24 h-24 mx-auto rounded-full bg-destructive/20 flex items-center justify-center">
-              {status === "location_error" ? (
+              {status === "location_error" || status === "out_of_range" ? (
                 <MapPin className="w-14 h-14 text-destructive" />
               ) : (
                 <XCircle className="w-14 h-14 text-destructive" />
@@ -393,9 +412,20 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-destructive mb-2">
-                {status === "location_error" ? "Location Required" : "Scan Failed"}
+                {status === "location_error"
+                  ? "Location Required"
+                  : status === "out_of_range"
+                    ? "Out of Range"
+                    : "Scan Failed"}
               </h2>
               <p className="text-muted-foreground">{errorMessage}</p>
+              {status === "out_of_range" && (
+                <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/20">
+                  <p className="text-sm text-warning">
+                    💡 Move closer to the classroom and try again
+                  </p>
+                </div>
+              )}
             </div>
             {status === "location_error" && (
               <Button onClick={requestLocation} variant="outline" className="gap-2">
@@ -417,6 +447,15 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-md mx-auto">
+        {/* Hidden QR reader container - must always be in DOM */}
+        <div
+          id={scannerContainerId}
+          className={cn(
+            "rounded-2xl overflow-hidden",
+            status !== "scanning" && "hidden"
+          )}
+        />
+
         <AnimatePresence mode="wait">
           {renderContent()}
         </AnimatePresence>

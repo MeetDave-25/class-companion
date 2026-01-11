@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, X, Search, Filter, Download } from "lucide-react";
+import { Check, X, Search, Filter, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,6 +37,8 @@ const AttendanceTable = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const filteredStudents = students.filter((student) => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -45,8 +47,19 @@ const AttendanceTable = ({
     return matchesSearch && matchesYear;
   });
 
-  const displaySubjects = selectedSubject === "all" 
-    ? subjects 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = () => {
+    setCurrentPage(1);
+  };
+
+  const displaySubjects = selectedSubject === "all"
+    ? subjects
     : subjects.filter(s => s.id === selectedSubject);
 
   const calculateAttendancePercentage = (studentId: string) => {
@@ -74,7 +87,7 @@ const AttendanceTable = ({
               className="pl-10"
             />
           </div>
-          
+
           <div className="flex gap-2">
             <Select value={selectedYear} onValueChange={setSelectedYear}>
               <SelectTrigger className="w-32">
@@ -130,13 +143,14 @@ const AttendanceTable = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredStudents.map((student, index) => {
+            {paginatedStudents.map((student, index) => {
               const percentage = calculateAttendancePercentage(student.id);
-              
+              const globalIndex = startIndex + index;
+
               return (
                 <TableRow key={student.id}>
                   <TableCell className="font-medium text-muted-foreground">
-                    {index + 1}
+                    {globalIndex + 1}
                   </TableCell>
                   <TableCell className="font-medium">{student.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -145,7 +159,7 @@ const AttendanceTable = ({
                   <TableCell className="text-center">{student.year}</TableCell>
                   {displaySubjects.map((subject) => {
                     const isPresent = attendanceData[student.id]?.[subject.id];
-                    
+
                     return (
                       <TableCell key={subject.id} className="text-center">
                         <button
@@ -173,8 +187,8 @@ const AttendanceTable = ({
                         percentage >= 75
                           ? "bg-success/10 text-success"
                           : percentage >= 50
-                          ? "bg-warning/10 text-warning"
-                          : "bg-destructive/10 text-destructive"
+                            ? "bg-warning/10 text-warning"
+                            : "bg-destructive/10 text-destructive"
                       )}
                     >
                       {percentage}%
@@ -186,6 +200,59 @@ const AttendanceTable = ({
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      {filteredStudents.length > 0 && (
+        <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="25">25 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+                <SelectItem value="100">100 per page</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+
+              <div className="flex items-center gap-1 px-2">
+                <span className="text-sm font-medium">{currentPage}</span>
+                <span className="text-sm text-muted-foreground">of {totalPages}</span>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredStudents.length === 0 && (
         <div className="p-12 text-center">

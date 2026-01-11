@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { 
-  GraduationCap, 
-  QrCode, 
-  ClipboardList, 
+import {
+  GraduationCap,
+  QrCode,
+  ClipboardList,
   Calendar,
   CheckCircle2,
   User,
   ArrowLeft,
-  BookOpen
+  BookOpen,
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import QRScanner from "@/components/student/QRScanner";
 import { cn } from "@/lib/utils";
+import { authAPI } from "@/lib/api";
 
 type View = "home" | "scan" | "attendance" | "schedule";
 
@@ -51,26 +53,26 @@ const StudentPortal = () => {
   };
 
   const menuItems = [
-    { 
-      id: "scan", 
-      label: "Scan QR", 
+    {
+      id: "scan",
+      label: "Scan QR",
       description: "Mark your attendance",
-      icon: QrCode, 
-      color: "gradient-primary" 
+      icon: QrCode,
+      color: "gradient-primary"
     },
-    { 
-      id: "attendance", 
-      label: "My Attendance", 
+    {
+      id: "attendance",
+      label: "My Attendance",
       description: "View attendance records",
-      icon: ClipboardList, 
-      color: "gradient-accent" 
+      icon: ClipboardList,
+      color: "gradient-accent"
     },
-    { 
-      id: "schedule", 
-      label: "Today's Schedule", 
+    {
+      id: "schedule",
+      label: "Today's Schedule",
       description: "View your classes",
-      icon: Calendar, 
-      color: "bg-success" 
+      icon: Calendar,
+      color: "bg-success"
     },
   ];
 
@@ -156,8 +158,8 @@ const StudentPortal = () => {
             <p className="font-semibold">Data Structures</p>
             <p className="text-sm text-muted-foreground">CS Lab 1 • 09:00 AM</p>
           </div>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             onClick={() => setCurrentView("scan")}
             className="gradient-primary border-0"
           >
@@ -167,14 +169,16 @@ const StudentPortal = () => {
         </div>
       </motion.div>
 
-      {/* Link to Teacher Portal */}
+      {/* Logout Button */}
       <div className="pt-4 border-t border-border">
-        <Link to="/">
-          <Button variant="ghost" className="w-full text-muted-foreground">
-            <GraduationCap className="w-4 h-4 mr-2" />
-            Switch to Teacher Portal
-          </Button>
-        </Link>
+        <Button
+          onClick={() => authAPI.logout()}
+          variant="outline"
+          className="w-full"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </Button>
       </div>
     </motion.div>
   );
@@ -207,8 +211,8 @@ const StudentPortal = () => {
             </div>
             <span className={cn(
               "px-3 py-1 rounded-full text-sm font-bold",
-              subject.percentage >= 75 
-                ? "bg-success/10 text-success" 
+              subject.percentage >= 75
+                ? "bg-success/10 text-success"
                 : "bg-destructive/10 text-destructive"
             )}>
               {subject.percentage}%
@@ -272,7 +276,7 @@ const StudentPortal = () => {
           const isBreak = slot.subject === "Break" || slot.subject === "Lunch";
           const isPast = index < 2;
           const isCurrent = index === 2;
-          
+
           return (
             <motion.div
               key={index}
@@ -281,8 +285,8 @@ const StudentPortal = () => {
               transition={{ delay: index * 0.1 }}
               className={cn(
                 "p-4 rounded-xl flex items-center gap-4",
-                isBreak 
-                  ? "bg-secondary/50" 
+                isBreak
+                  ? "bg-secondary/50"
                   : "bg-card shadow-card",
                 isCurrent && "ring-2 ring-primary"
               )}
@@ -327,7 +331,7 @@ const StudentPortal = () => {
         </Button>
         <h2 className="text-xl font-bold">Scan Attendance</h2>
       </div>
-      
+
       <QRScanner onAttendanceMarked={handleAttendanceMarked} />
     </motion.div>
   );

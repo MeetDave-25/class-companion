@@ -1,73 +1,200 @@
-# Welcome to your Lovable project
+# AttendEasy - Smart College Attendance Management System
 
-## Project info
+![AttendEasy Logo](public/favicon.png)
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**AttendEasy** is a modern, comprehensive attendance management system designed for colleges and educational institutions. Built with React, TypeScript, and Vite, it offers a seamless experience for teachers to manage students, track attendance, record test marks, and generate timetables.
 
-## How can I edit this code?
+## 🌟 Features
 
-There are several ways of editing your application.
+### 📊 Dashboard
+- Real-time statistics overview (students, subjects, attendance rates, average scores)
+- Recent activity feed
+- Student distribution by year
+- Quick access to all major features
 
-**Use Lovable**
+### 📱 QR-Based Attendance
+- Generate time-limited QR codes for each subject
+- Students scan QR codes to mark attendance
+- Location-based verification (geofencing)
+- Real-time attendance tracking
+- Session history with detailed reports
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 👨‍🎓 Student Management
+- Add, edit, and delete student records
+- Import students via CSV
+- Search and filter functionality
+- Track student information (name, roll number, email, year)
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📚 Subject Management
+- Organize subjects by year and semester
+- Add, edit, and delete subjects
+- Subject code and name management
+- Year-wise subject categorization
 
-**Use your preferred IDE**
+### 📝 Test Marks Management
+- Create tests for specific subjects
+- Record and update student marks
+- Automatic grade calculation
+- Filter by subject and test
+- Performance analytics with color-coded grades
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 📅 Timetable Generator
+- Configure lecture timings
+- Set break durations
+- Generate timetables for different years
+- Customizable time slots
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 📤 Data Export
+- Export attendance data to CSV
+- Export marks data to CSV
+- Combined reports
+- Filter by year and subject
 
-Follow these steps:
+## 🚀 Getting Started
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or bun package manager
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Installation
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd attenedeasy/class-companion
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   bun install
+   ```
+
+3. **Start the development server**
+   ```bash
+   npm run dev
+   # or
+   bun dev
+   ```
+
+4. **Open your browser**
+   Navigate to `http://localhost:8080`
+
+### Build for Production
+
+```bash
+npm run build
+# or
+bun run build
 ```
 
-**Edit a file directly in GitHub**
+The production-ready files will be in the `dist` folder.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🛠️ Technology Stack
 
-**Use GitHub Codespaces**
+- **Frontend Framework**: React 18
+- **Language**: TypeScript
+- **Build Tool**: Vite
+- **UI Components**: shadcn/ui (Radix UI)
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **QR Code**: qrcode.react, html5-qrcode
+- **State Management**: React Query (TanStack Query)
+- **Routing**: React Router DOM
+- **Form Handling**: React Hook Form + Zod
+- **Charts**: Recharts
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📁 Project Structure
 
-## What technologies are used for this project?
+```
+class-companion/
+├── public/              # Static assets
+│   └── favicon.png     # App icon
+├── src/
+│   ├── components/     # React components
+│   │   ├── attendance/ # Attendance-related components
+│   │   ├── dashboard/  # Dashboard components
+│   │   ├── export/     # Data export components
+│   │   ├── layout/     # Layout components
+│   │   ├── marks/      # Marks management components
+│   │   ├── students/   # Student management components
+│   │   ├── subjects/   # Subject management components
+│   │   ├── timetable/  # Timetable components
+│   │   └── ui/         # Reusable UI components
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # Utility functions
+│   ├── pages/          # Page components
+│   ├── types/          # TypeScript type definitions
+│   ├── App.tsx         # Main app component
+│   └── main.tsx        # App entry point
+├── index.html          # HTML template
+├── package.json        # Dependencies
+├── tailwind.config.ts  # Tailwind configuration
+├── tsconfig.json       # TypeScript configuration
+└── vite.config.ts      # Vite configuration
+```
 
-This project is built with:
+## 🎨 Key Components
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Teacher Dashboard (`/`)
+The main interface for teachers with navigation to all features.
 
-## How can I deploy this project?
+### Student Portal (`/student`)
+A dedicated portal for students to view and mark attendance.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Session History (`/sessions`)
+View detailed attendance session history with geolocation data.
 
-## Can I connect a custom domain to my Lovable project?
+## 🔧 Configuration
 
-Yes, you can!
+### Customizing Colors
+Edit `tailwind.config.ts` to customize the color scheme.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Adding New Features
+1. Create components in the appropriate folder under `src/components/`
+2. Add types in `src/types/index.ts`
+3. Update routing in `src/App.tsx`
+4. Add navigation items in `src/components/layout/Sidebar.tsx`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 📊 Data Management
+
+Currently, the application uses in-memory state management with sample data. For production use, you should:
+
+1. Integrate with a backend API
+2. Add authentication and authorization
+3. Implement persistent storage (database)
+4. Add real-time updates using WebSockets
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is open source and available under the MIT License.
+
+## 🐛 Known Issues
+
+- Data is not persisted (in-memory only)
+- No authentication system
+- Location-based attendance requires HTTPS in production
+
+## 🔮 Future Enhancements
+
+- [ ] Backend API integration
+- [ ] User authentication (teacher/student roles)
+- [ ] Database integration
+- [ ] Mobile app (React Native)
+- [ ] Email notifications
+- [ ] Attendance reports and analytics
+- [ ] Parent portal
+- [ ] Multi-language support
+
+## 💡 Support
+
+For support, please open an issue in the GitHub repository.
+
+---
+
+**Made with ❤️ for educational institutions**

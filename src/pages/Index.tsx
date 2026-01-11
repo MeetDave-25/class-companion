@@ -1,90 +1,189 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { toast } from "sonner";
 import Sidebar from "@/components/layout/Sidebar";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import QRGenerator from "@/components/attendance/QRGenerator";
 import AttendanceTable from "@/components/attendance/AttendanceTable";
+import SessionList from "@/components/attendance/SessionList";
+import SessionDetails from "@/components/attendance/SessionDetails";
 import SubjectManager from "@/components/subjects/SubjectManager";
 import StudentManager from "@/components/students/StudentManager";
 import MarksManager from "@/components/marks/MarksManager";
 import TimetableGenerator from "@/components/timetable/TimetableGenerator";
 import DataExport from "@/components/export/DataExport";
-import { Subject, Student, TestMark } from "@/types";
-
-// Sample data
-const initialSubjects: Subject[] = [
-  { id: "cs101", name: "Programming Fundamentals", code: "CS101", year: 1, semester: 1 },
-  { id: "cs102", name: "Data Structures", code: "CS201", year: 1, semester: 2 },
-  { id: "cs201", name: "Algorithms", code: "CS301", year: 2, semester: 1 },
-  { id: "cs202", name: "Database Systems", code: "CS302", year: 2, semester: 1 },
-  { id: "cs301", name: "Operating Systems", code: "CS401", year: 3, semester: 1 },
-  { id: "cs302", name: "Computer Networks", code: "CS402", year: 3, semester: 2 },
-  { id: "cs401", name: "Machine Learning", code: "CS501", year: 4, semester: 1 },
-  { id: "cs402", name: "Cloud Computing", code: "CS502", year: 4, semester: 2 },
-];
-
-const initialStudents: Student[] = [
-  { id: "s1", name: "Alice Johnson", rollNumber: "2024CS001", year: 1, email: "alice@college.edu" },
-  { id: "s2", name: "Bob Smith", rollNumber: "2024CS002", year: 1, email: "bob@college.edu" },
-  { id: "s3", name: "Charlie Brown", rollNumber: "2024CS003", year: 1, email: "charlie@college.edu" },
-  { id: "s4", name: "Diana Ross", rollNumber: "2023CS001", year: 2, email: "diana@college.edu" },
-  { id: "s5", name: "Edward Wilson", rollNumber: "2023CS002", year: 2, email: "edward@college.edu" },
-  { id: "s6", name: "Fiona Apple", rollNumber: "2022CS001", year: 3, email: "fiona@college.edu" },
-  { id: "s7", name: "George Martin", rollNumber: "2022CS002", year: 3, email: "george@college.edu" },
-  { id: "s8", name: "Hannah Lee", rollNumber: "2021CS001", year: 4, email: "hannah@college.edu" },
-];
-
-const initialAttendance: Record<string, Record<string, boolean>> = {
-  s1: { cs101: true, cs102: true },
-  s2: { cs101: true, cs102: false },
-  s3: { cs101: false, cs102: true },
-  s4: { cs201: true, cs202: true },
-  s5: { cs201: true, cs202: true },
-  s6: { cs301: true, cs302: false },
-  s7: { cs301: true, cs302: true },
-  s8: { cs401: true, cs402: true },
-};
-
-const initialMarks: TestMark[] = [
-  { id: "m1", studentId: "s1", subjectId: "cs101", testName: "Mid-term", maxMarks: 100, obtainedMarks: 85, date: new Date() },
-  { id: "m2", studentId: "s2", subjectId: "cs101", testName: "Mid-term", maxMarks: 100, obtainedMarks: 72, date: new Date() },
-  { id: "m3", studentId: "s3", subjectId: "cs101", testName: "Mid-term", maxMarks: 100, obtainedMarks: 90, date: new Date() },
-  { id: "m4", studentId: "s4", subjectId: "cs201", testName: "Quiz 1", maxMarks: 50, obtainedMarks: 42, date: new Date() },
-  { id: "m5", studentId: "s5", subjectId: "cs201", testName: "Quiz 1", maxMarks: 50, obtainedMarks: 38, date: new Date() },
-];
+import { Subject, Student, TestMark, AttendanceSession } from "@/types";
+import { studentsAPI, subjectsAPI, marksAPI, attendanceAPI } from "@/lib/api";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
-  const [students, setStudents] = useState<Student[]>(initialStudents);
-  const [attendanceData, setAttendanceData] = useState<Record<string, Record<string, boolean>>>(initialAttendance);
-  const [marks, setMarks] = useState<TestMark[]>(initialMarks);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [attendanceData, setAttendanceData] = useState<Record<string, Record<string, boolean>>>({});
+  const [marks, setMarks] = useState<TestMark[]>([]);
+  const [sessions, setSessions] = useState<AttendanceSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchStudents(),
+        fetchSubjects(),
+        fetchMarks(),
+        fetchSessions(),
+      ]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load data from server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await studentsAPI.getAll();
+      const studentsData = response.data.map((s: any) => ({
+        id: s.id.toString(),
+        name: s.name,
+        rollNumber: s.roll_number,
+        year: s.year,
+        email: s.email,
+      }));
+      setStudents(studentsData);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+    }
+  };
+
+  const fetchSubjects = async () => {
+    try {
+      const response = await subjectsAPI.getAll();
+      const subjectsData = response.data.map((s: any) => ({
+        id: s.id.toString(),
+        name: s.name,
+        code: s.code,
+        year: s.year,
+        semester: s.semester,
+      }));
+      setSubjects(subjectsData);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+    }
+  };
+
+  const fetchMarks = async () => {
+    try {
+      const response = await marksAPI.getAll();
+      const marksData = response.data.map((m: any) => ({
+        id: m.id.toString(),
+        studentId: m.student_id.toString(),
+        subjectId: m.subject_id.toString(),
+        testName: m.test_name,
+        maxMarks: m.max_marks,
+        obtainedMarks: m.obtained_marks,
+        date: new Date(m.test_date),
+      }));
+      setMarks(marksData);
+    } catch (error) {
+      console.error("Error fetching marks:", error);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const response = await attendanceAPI.getSessions();
+      const sessionsData = response.data.map((s: any) => ({
+        id: s.id.toString(),
+        subjectId: s.subject_id.toString(),
+        subjectName: s.subject_name,
+        subjectCode: s.subject_code,
+        date: new Date(s.start_time),
+        startTime: new Date(s.start_time),
+        endTime: new Date(s.end_time),
+        qrCode: s.qr_code,
+        expiresAt: new Date(s.end_time),
+        isActive: s.is_active,
+        location: s.location_lat && s.location_lng ? {
+          latitude: parseFloat(s.location_lat),
+          longitude: parseFloat(s.location_lng),
+          radius: s.allowed_radius,
+        } : undefined,
+        presentStudents: [],
+        studentsPresent: [],
+      }));
+      setSessions(sessionsData);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    }
+  };
 
   // Subject handlers
-  const handleAddSubject = (subject: Omit<Subject, "id">) => {
-    const newSubject = { ...subject, id: `subject-${Date.now()}` };
-    setSubjects([...subjects, newSubject]);
+  const handleAddSubject = async (subject: Omit<Subject, "id">) => {
+    try {
+      await subjectsAPI.create(subject);
+      toast.success("Subject created successfully");
+      await fetchSubjects();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create subject");
+    }
   };
 
-  const handleUpdateSubject = (id: string, updates: Partial<Subject>) => {
-    setSubjects(subjects.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+  const handleUpdateSubject = async (id: string, updates: Partial<Subject>) => {
+    try {
+      await subjectsAPI.update(id, updates);
+      toast.success("Subject updated successfully");
+      await fetchSubjects();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update subject");
+    }
   };
 
-  const handleDeleteSubject = (id: string) => {
-    setSubjects(subjects.filter((s) => s.id !== id));
+  const handleDeleteSubject = async (id: string) => {
+    try {
+      await subjectsAPI.delete(id);
+      toast.success("Subject deleted successfully");
+      await fetchSubjects();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete subject");
+    }
   };
 
   // Student handlers
-  const handleAddStudent = (student: Omit<Student, "id">) => {
-    const newStudent = { ...student, id: `student-${Date.now()}` };
-    setStudents([...students, newStudent]);
+  const handleAddStudent = async (student: Omit<Student, "id">) => {
+    try {
+      await studentsAPI.create(student);
+      toast.success("Student created successfully");
+      await fetchStudents();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create student");
+    }
   };
 
-  const handleUpdateStudent = (id: string, updates: Partial<Student>) => {
-    setStudents(students.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+  const handleUpdateStudent = async (id: string, updates: Partial<Student>) => {
+    try {
+      await studentsAPI.update(id, updates);
+      toast.success("Student updated successfully");
+      await fetchStudents();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update student");
+    }
   };
 
-  const handleDeleteStudent = (id: string) => {
-    setStudents(students.filter((s) => s.id !== id));
+  const handleDeleteStudent = async (id: string) => {
+    try {
+      await studentsAPI.delete(id);
+      toast.success("Student deleted successfully");
+      await fetchStudents();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete student");
+    }
   };
 
   // Attendance handlers
@@ -109,20 +208,59 @@ const Index = () => {
   }, []);
 
   // Marks handlers
-  const handleAddMark = (mark: Omit<TestMark, "id">) => {
-    const newMark = { ...mark, id: `mark-${Date.now()}` };
-    setMarks([...marks, newMark]);
+  const handleAddMark = async (mark: Omit<TestMark, "id">) => {
+    try {
+      await marksAPI.create({
+        studentId: mark.studentId,
+        subjectId: mark.subjectId,
+        testName: mark.testName,
+        maxMarks: mark.maxMarks,
+        obtainedMarks: mark.obtainedMarks,
+        testDate: mark.date.toISOString().split('T')[0],
+      });
+      toast.success("Marks added successfully");
+      await fetchMarks();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add marks");
+    }
   };
 
-  const handleUpdateMark = (id: string, updates: Partial<TestMark>) => {
-    setMarks(marks.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+  const handleUpdateMark = async (id: string, updates: Partial<TestMark>) => {
+    try {
+      await marksAPI.update(id, {
+        obtainedMarks: updates.obtainedMarks,
+        maxMarks: updates.maxMarks,
+        testName: updates.testName,
+      });
+      toast.success("Marks updated successfully");
+      await fetchMarks();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update marks");
+    }
   };
 
-  const handleDeleteMark = (id: string) => {
-    setMarks(marks.filter((m) => m.id !== id));
+  const handleDeleteMark = async (id: string) => {
+    try {
+      await marksAPI.delete(id);
+      toast.success("Marks deleted successfully");
+      await fetchMarks();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete marks");
+    }
   };
 
   const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading data from database...</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case "dashboard":
         return (
@@ -147,6 +285,21 @@ const Index = () => {
               onToggleAttendance={handleToggleAttendance}
             />
           </div>
+        );
+      case "sessions":
+        if (selectedSession) {
+          return (
+            <SessionDetails
+              session={selectedSession}
+              onBack={() => setSelectedSession(null)}
+            />
+          );
+        }
+        return (
+          <SessionList
+            sessions={sessions}
+            onSessionClick={setSelectedSession}
+          />
         );
       case "students":
         return (
@@ -196,7 +349,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      
+
       <main className="md:ml-64 min-h-screen">
         <div className="p-6 md:p-8 pt-16 md:pt-8">
           {renderContent()}

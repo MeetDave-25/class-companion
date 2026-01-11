@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, QrCode, Power, PowerOff, Users, Timer } from "lucide-react";
+import { Clock, QrCode, Power, PowerOff, Users, Timer, MapPin, Navigation, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Subject } from "@/types";
+import { attendanceAPI } from "@/lib/api";
+import { toast } from "sonner";
 
 interface QRGeneratorProps {
   subjects: Subject[];
@@ -26,6 +28,46 @@ const QRGenerator = ({ subjects, onAttendanceMarked }: QRGeneratorProps) => {
   const [qrCode, setQrCode] = useState<string>("");
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [presentCount, setPresentCount] = useState(0);
+  const [allowedRadius, setAllowedRadius] = useState<number>(50);
+  const [teacherLocation, setTeacherLocation] = useState<GeolocationCoordinates | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+  const requestTeacherLocation = () => {
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setTeacherLocation(position.coords);
+        setLocationError(null);
+      },
+      (error) => {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError("Location permission denied");
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError("Location unavailable");
+            break;
+          case error.TIMEOUT:
+            setLocationError("Location request timed out");
+            break;
+          default:
+            setLocationError("Unknown error occurred");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
 
   const generateQRCode = useCallback(() => {
     const sessionId = `${selectedSubject}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -35,24 +77,59 @@ const QRGenerator = ({ subjects, onAttendanceMarked }: QRGeneratorProps) => {
       timestamp: Date.now(),
       expiresAt: Date.now() + duration * 60 * 1000,
       locationRequired: true,
+      allowedLocation: teacherLocation ? {
+        latitude: teacherLocation.latitude,
+        longitude: teacherLocation.longitude,
+        radius: allowedRadius,
+      } : undefined,
     });
-    return btoa(qrData);
-  }, [selectedSubject, duration]);
+    return { sessionId, qrCode: btoa(qrData) };
+  }, [selectedSubject, duration, teacherLocation, allowedRadius]);
 
-  const startSession = () => {
-    if (!selectedSubject) return;
-    
-    const newQrCode = generateQRCode();
-    setQrCode(newQrCode);
-    setTimeLeft(duration * 60);
-    setIsActive(true);
-    setPresentCount(0);
+  const startSession = async () => {
+    if (!selectedSubject || !teacherLocation) return;
+
+    try {
+      const { sessionId, qrCode: newQrCode } = generateQRCode();
+      const now = new Date();
+      const endTime = new Date(now.getTime() + duration * 60 * 1000);
+
+      // Save session to database
+      const response = await attendanceAPI.createSession({
+        subjectId: selectedSubject,
+        qrCode: newQrCode,
+        startTime: now.toISOString(),
+        endTime: endTime.toISOString(),
+        locationLat: teacherLocation.latitude,
+        locationLng: teacherLocation.longitude,
+        allowedRadius: allowedRadius,
+      });
+
+      setCurrentSessionId(response.data.id);
+      setQrCode(newQrCode);
+      setTimeLeft(duration * 60);
+      setIsActive(true);
+      setPresentCount(0);
+      toast.success("Attendance session started");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to start session");
+      console.error("Error starting session:", error);
+    }
   };
 
-  const stopSession = () => {
+  const stopSession = async () => {
+    if (currentSessionId) {
+      try {
+        await attendanceAPI.stopSession(currentSessionId);
+        toast.success("Session stopped");
+      } catch (error) {
+        console.error("Error stopping session:", error);
+      }
+    }
     setIsActive(false);
     setQrCode("");
     setTimeLeft(0);
+    setCurrentSessionId(null);
   };
 
   // Countdown timer
@@ -72,20 +149,6 @@ const QRGenerator = ({ subjects, onAttendanceMarked }: QRGeneratorProps) => {
 
     return () => clearInterval(timer);
   }, [isActive, timeLeft]);
-
-  // Simulate students marking attendance
-  useEffect(() => {
-    if (!isActive) return;
-
-    const interval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        setPresentCount((prev) => prev + 1);
-        onAttendanceMarked(`student-${Date.now()}`, selectedSubject);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [isActive, selectedSubject, onAttendanceMarked]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -113,37 +176,90 @@ const QRGenerator = ({ subjects, onAttendanceMarked }: QRGeneratorProps) => {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Select Subject</Label>
-            <Select 
-              value={selectedSubject} 
-              onValueChange={setSelectedSubject}
-              disabled={isActive}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {subjects.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name} ({subject.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Select Subject</Label>
+              <Select
+                value={selectedSubject}
+                onValueChange={setSelectedSubject}
+                disabled={isActive}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.id}>
+                      {subject.name} ({subject.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Duration (minutes)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                disabled={isActive}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Duration (minutes)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={30}
-              value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
-              disabled={isActive}
-            />
+          {/* Location Configuration */}
+          <div className="p-4 rounded-xl bg-secondary/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                <Label className="mb-0">Location-Based Attendance</Label>
+              </div>
+              {!isActive && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={requestTeacherLocation}
+                  disabled={isActive}
+                >
+                  <Navigation className="w-4 h-4 mr-2" />
+                  Get Location
+                </Button>
+              )}
+            </div>
+
+            {teacherLocation ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-success">
+                  <MapPin className="w-4 h-4" />
+                  <span>Location captured (Accuracy: {Math.round(teacherLocation.accuracy)}m)</span>
+                </div>
+                <div className="space-y-2">
+                  <Label>Allowed Radius (meters)</Label>
+                  <Input
+                    type="number"
+                    min={10}
+                    max={1000}
+                    step={10}
+                    value={allowedRadius}
+                    onChange={(e) => setAllowedRadius(Number(e.target.value))}
+                    disabled={isActive}
+                    placeholder="50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Students must be within {allowedRadius}m to mark attendance
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <AlertCircle className="w-4 h-4" />
+                <span>{locationError || "Click 'Get Location' to enable geofencing"}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-end">
@@ -159,7 +275,7 @@ const QRGenerator = ({ subjects, onAttendanceMarked }: QRGeneratorProps) => {
             ) : (
               <Button
                 onClick={startSession}
-                disabled={!selectedSubject}
+                disabled={!selectedSubject || !teacherLocation}
                 className="w-full gradient-primary border-0"
               >
                 <Power className="w-4 h-4 mr-2" />
@@ -236,6 +352,16 @@ const QRGenerator = ({ subjects, onAttendanceMarked }: QRGeneratorProps) => {
                     </div>
                     <p className="text-3xl font-bold font-mono">
                       {formatTime(timeLeft)}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-primary/10">
+                    <div className="flex items-center gap-2 text-primary mb-1">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-sm">Geofencing</span>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {allowedRadius}m
                     </p>
                   </div>
 

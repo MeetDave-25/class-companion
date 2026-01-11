@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { 
-  QrCode, 
-  Users, 
-  ClipboardList, 
-  Calendar, 
+import {
+  QrCode,
+  Users,
+  ClipboardList,
+  Calendar,
   FileSpreadsheet,
   GraduationCap,
   Menu,
   X,
-  BookOpen
+  BookOpen,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { authAPI } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
   activeTab: string;
@@ -21,6 +24,7 @@ interface SidebarProps {
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: GraduationCap },
   { id: "attendance", label: "QR Attendance", icon: QrCode },
+  { id: "sessions", label: "Session History", icon: ClipboardList },
   { id: "students", label: "Students", icon: Users },
   { id: "subjects", label: "Subjects", icon: BookOpen },
   { id: "marks", label: "Test Marks", icon: ClipboardList },
@@ -77,7 +81,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
-            
+
             return (
               <motion.button
                 key={item.id}
@@ -102,11 +106,21 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-2">
           <div className="px-4 py-3 rounded-xl bg-secondary">
             <p className="text-sm font-medium">Teacher Dashboard</p>
-            <p className="text-xs text-muted-foreground">v1.0.0</p>
+            <p className="text-xs text-muted-foreground">
+              {authAPI.getCurrentUser()?.email || 'Not logged in'}
+            </p>
           </div>
+          <Button
+            onClick={() => authAPI.logout()}
+            variant="outline"
+            className="w-full justify-start gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
         </div>
       </motion.aside>
     </>

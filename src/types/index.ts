@@ -17,11 +17,34 @@ export interface Student {
 export interface AttendanceSession {
   id: string;
   subjectId: string;
+  subjectName?: string;
+  subjectCode?: string;
   date: Date;
+  startTime: Date;
+  endTime?: Date;
   qrCode: string;
   expiresAt: Date;
   isActive: boolean;
+  location?: {
+    latitude: number;
+    longitude: number;
+    radius: number;
+  };
   presentStudents: string[];
+  studentsPresent?: SessionAttendance[];
+}
+
+export interface SessionAttendance {
+  studentId: string;
+  studentName: string;
+  rollNumber: string;
+  year: number;
+  markedAt: Date;
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+  };
 }
 
 export interface AttendanceRecord {

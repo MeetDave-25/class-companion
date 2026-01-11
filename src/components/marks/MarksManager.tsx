@@ -48,8 +48,8 @@ const MarksManager = ({
   onUpdateMark,
   onDeleteMark,
 }: MarksManagerProps) => {
-  const [selectedSubject, setSelectedSubject] = useState<string>("");
-  const [selectedTest, setSelectedTest] = useState<string>("");
+  const [selectedSubject, setSelectedSubject] = useState<string>("all");
+  const [selectedTest, setSelectedTest] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTest, setNewTest] = useState({
     testName: "",
@@ -61,8 +61,8 @@ const MarksManager = ({
 
   const filteredMarks = marks.filter(
     (m) =>
-      (!selectedSubject || m.subjectId === selectedSubject) &&
-      (!selectedTest || m.testName === selectedTest)
+      (selectedSubject === "all" || m.subjectId === selectedSubject) &&
+      (selectedTest === "all" || m.testName === selectedTest)
   );
 
   const handleCreateTest = () => {
@@ -192,7 +192,7 @@ const MarksManager = ({
               <SelectValue placeholder="Filter by subject" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Subjects</SelectItem>
+              <SelectItem value="all">All Subjects</SelectItem>
               {subjects.map((subject) => (
                 <SelectItem key={subject.id} value={subject.id}>
                   {subject.name}
@@ -206,7 +206,7 @@ const MarksManager = ({
               <SelectValue placeholder="Filter by test" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Tests</SelectItem>
+              <SelectItem value="all">All Tests</SelectItem>
               {testNames.map((test) => (
                 <SelectItem key={test} value={test}>
                   {test}
@@ -286,8 +286,8 @@ const MarksManager = ({
                         percentage >= 75
                           ? "bg-success/10 text-success"
                           : percentage >= 50
-                          ? "bg-warning/10 text-warning"
-                          : "bg-destructive/10 text-destructive"
+                            ? "bg-warning/10 text-warning"
+                            : "bg-destructive/10 text-destructive"
                       )}
                     >
                       {percentage}%
