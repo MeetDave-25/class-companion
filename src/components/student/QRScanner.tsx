@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { isWithinRadius, formatDistance } from "@/lib/geolocation";
 
 interface QRScannerProps {
-  onAttendanceMarked: (sessionData: any, location: GeolocationCoordinates) => void;
+  onAttendanceMarked: (sessionData: any, location: GeolocationCoordinates) => Promise<void>;
 }
 
 type ScanStatus = "idle" | "scanning" | "verifying" | "success" | "error" | "expired" | "location_error" | "out_of_range";
@@ -177,10 +177,34 @@ const QRScanner = ({ onAttendanceMarked }: QRScannerProps) => {
         }
       }
 
-      // Location is verified, mark attendance
+      // Location is verified, mark attendance via API
       if (location) {
-        onAttendanceMarked(decoded, location);
-        setStatus("success");
+        try {
+          await onAttendanceMarked(decoded, location);
+          setStatus("success");
+        } catch (apiError: any) {
+          console.error("API error:", apiError);
+
+          // Handle specific error cases
+          const errorMessage = apiError.message || String(apiError);
+
+          if (errorMessage.includes("already marked") || errorMessage.includes("ALREADY_MARKED")) {
+            setStatus("error");
+            setErrorMessage("You have already marked attendance for this session.");
+          } else if (errorMessage.includes("expired") || errorMessage.includes("SESSION_EXPIRED")) {
+            setStatus("expired");
+            setErrorMessage("This attendance session has expired or is no longer active.");
+          } else if (errorMessage.includes("No response from server") || errorMessage.includes("Network Error")) {
+            setStatus("error");
+            setErrorMessage("Unable to connect to server. Please check your internet connection and try again.");
+          } else if (errorMessage.includes("authentication") || errorMessage.includes("Student authentication required")) {
+            setStatus("error");
+            setErrorMessage("Please log in as a student to mark attendance.");
+          } else {
+            setStatus("error");
+            setErrorMessage(`Failed to mark attendance: ${errorMessage}`);
+          }
+        }
       } else {
         setStatus("location_error");
         setErrorMessage("Could not verify your location");

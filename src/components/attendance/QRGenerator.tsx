@@ -150,6 +150,26 @@ const QRGenerator = ({ subjects, onAttendanceMarked }: QRGeneratorProps) => {
     return () => clearInterval(timer);
   }, [isActive, timeLeft]);
 
+  // Poll for attendance updates
+  useEffect(() => {
+    if (!isActive || !currentSessionId) return;
+
+    const pollAttendance = async () => {
+      try {
+        const response = await attendanceAPI.getSessionById(currentSessionId);
+        setPresentCount(response.data.total_present || 0);
+      } catch (error) {
+        console.error("Error fetching session details:", error);
+      }
+    };
+
+    // Poll immediately and then every 3 seconds
+    pollAttendance();
+    const interval = setInterval(pollAttendance, 3000);
+
+    return () => clearInterval(interval);
+  }, [isActive, currentSessionId]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;

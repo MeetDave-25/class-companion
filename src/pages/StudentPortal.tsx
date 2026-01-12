@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import QRScanner from "@/components/student/QRScanner";
 import { cn } from "@/lib/utils";
-import { authAPI } from "@/lib/api";
+import { authAPI, attendanceAPI } from "@/lib/api";
 
 type View = "home" | "scan" | "attendance" | "schedule";
 
@@ -47,9 +47,30 @@ const StudentPortal = () => {
   const [currentView, setCurrentView] = useState<View>("home");
   const [markedSessions, setMarkedSessions] = useState<string[]>([]);
 
-  const handleAttendanceMarked = (sessionData: any, location: GeolocationCoordinates) => {
-    console.log("Attendance marked:", sessionData, "Location:", location);
-    setMarkedSessions([...markedSessions, sessionData.sessionId]);
+  const handleAttendanceMarked = async (sessionData: any, location: GeolocationCoordinates) => {
+    try {
+      // Get the current logged-in student
+      const user = authAPI.getCurrentUser();
+      if (!user || user.role !== 'student') {
+        throw new Error('Student authentication required');
+      }
+
+      // Call the backend API to mark attendance
+      await attendanceAPI.markAttendance({
+        sessionId: sessionData.sessionId,
+        studentId: user.id,
+        locationLat: location.latitude,
+        locationLng: location.longitude,
+        locationAccuracy: location.accuracy
+      });
+
+      console.log("Attendance marked successfully:", sessionData, "Location:", location);
+      setMarkedSessions([...markedSessions, sessionData.sessionId]);
+    } catch (error: any) {
+      console.error('Failed to mark attendance:', error);
+      // Re-throw the error so QRScanner can handle it
+      throw error;
+    }
   };
 
   const menuItems = [
